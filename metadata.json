@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "kuuro.js@gmail.com",
+                "Name": "kuro"
+            }
+        ],
+        "Category": "Language",
+        "Description": "A widget to learn daily kanji",
+        "Icon": "battery",
+        "Id": "DailyKanji",
+        "Name": "Daily Kanji",
+        "Version": "1.0",
+        "Website": "https://github.com/kurojs/DailyKanji"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
