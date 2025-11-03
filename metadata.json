@@ -8,7 +8,7 @@
         ],
         "Category": "Language",
         "Description": "A widget to learn daily kanji with meanings and readings. Displays a new kanji each day from the Joyo kanji set.",
-        "Icon": "education-languages",
+        "Icon": "accessories-dictionary",
         "Id": "com.github.kurojs.dailykanji",
         "Name": "Daily Kanji",
         "Version": "1.0.0",

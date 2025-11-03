@@ -92,11 +92,31 @@ Rectangle {
             const source = plasmoid.configuration.kanjiSource || "joyo";
             const jlpt = plasmoid.configuration.jlptLevel || "all";
             
+            // Use github source for JLPT filtering, kanjiapi for others
+            if (jlpt !== "all") {
+                console.log("Fetching JLPT filtered kanji from github source, level:", jlpt);
+                return fetchJLPTKanjiFromGithub(jlpt, source).then((result) => {
+                    return true;
+                }).catch((error) => {
+                    console.log("Failed to fetch JLPT kanji:", error);
+                    networkAvailable = false;
+                    
+                    if (retryAttempts < maxRetryAttempts) {
+                        retryAttempts++;
+                        console.log("Scheduling retry in", (retryAttempts * 5), "seconds");
+                        retryTimer.interval = retryAttempts * 5000;
+                        retryTimer.restart();
+                    } else {
+                        console.log("Max retry attempts reached, showing fallback content");
+                        showFallbackContent();
+                    }
+                    return false;
+                });
+            }
+            
             let apiPath = "/v1/kanji/joyo";
             if (source === "all") {
                 apiPath = "/v1/kanji/all";
-            } else if (jlpt !== "all") {
-                apiPath = "/v1/kanji/jlpt-" + jlpt;
             }
             
             console.log("Using API path:", apiPath);
@@ -123,6 +143,57 @@ Rectangle {
                     showFallbackContent();
                 }
                 return false;
+            });
+        }
+
+        function fetchJLPTKanjiFromGithub(jlptLevel, source) {
+            const jlptNum = parseInt(jlptLevel.substring(1)); // "n5" -> 5
+            
+            return new Promise((resolve, reject) => {
+                let xhr = new XMLHttpRequest();
+                xhr.open("GET", "https://raw.githubusercontent.com/davidluzgouveia/kanji-data/master/kanji-jouyou.json", true);
+                xhr.timeout = 15000;
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
+                        if (xhr.status === 200) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                const filtered = [];
+                                
+                                for (let kanji in data) {
+                                    if (data[kanji].jlpt_new === jlptNum) {
+                                        filtered.push(kanji);
+                                    }
+                                }
+                                
+                                allKanji = filtered;
+                                console.log("JLPT", jlptLevel, "kanji loaded:", filtered.length);
+                                networkAvailable = true;
+                                retryAttempts = 0;
+                                resolve(true);
+                            } catch (e) {
+                                console.log("Error parsing JLPT data:", e);
+                                reject("parse_error");
+                            }
+                        } else {
+                            console.log("Error fetching JLPT data:", xhr.status);
+                            reject(xhr.status);
+                        }
+                    }
+                };
+                
+                xhr.ontimeout = function() {
+                    console.log("JLPT data request timed out");
+                    reject("timeout");
+                };
+                
+                xhr.onerror = function() {
+                    console.log("Error loading JLPT data");
+                    reject("network_error");
+                };
+                
+                xhr.send();
             });
         }
 
@@ -314,6 +385,37 @@ Rectangle {
                 }
             });
         }
+    }
+
+    // Watch for configuration changes
+    Connections {
+        target: plasmoid.configuration
+        function onJlptLevelChanged() {
+            console.log("JLPT Level changed to:", plasmoid.configuration.jlptLevel);
+            reloadKanji();
+        }
+        function onKanjiSourceChanged() {
+            console.log("Kanji Source changed to:", plasmoid.configuration.kanjiSource);
+            reloadKanji();
+        }
+    }
+
+    function reloadKanji() {
+        console.log("Reloading kanji due to configuration change");
+        kanjiLabel.text = "Loading...";
+        descriptionLabel.text = "";
+        apiHandler.allKanji = [];
+        apiHandler.retryAttempts = 0;
+        
+        apiHandler.fetchAllKanji().then((success) => {
+            if (success) {
+                apiHandler.setRandomKanjiInfos();
+                if (!midnightTimer.running) {
+                    midnightTimer.interval = apiHandler.msUntilMidnight();
+                    midnightTimer.running = true;
+                }
+            }
+        });
     }
 
     Component.onCompleted: {
