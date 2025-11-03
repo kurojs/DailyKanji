@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- White background with rounded corners -->
+  <rect width="128" height="128" rx="16" fill="#ffffff"/>
+  
+  <!-- Red circle (Japanese flag inspired) -->
+  <circle cx="64" cy="64" r="45" fill="#BC002D"/>
+  
+  <!-- Kanji 字 (character) -->
+  <text x="64" y="82" 
+        font-family="Noto Sans JP, sans-serif" 
+        font-size="62" 
+        font-weight="700" 
+        fill="#e5e5e5" 
+        text-anchor="middle" 
+        letter-spacing="-2">字</text>
+</svg>

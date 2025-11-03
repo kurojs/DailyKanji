@@ -89,7 +89,19 @@ Rectangle {
         function fetchAllKanji() {
             console.log("Attempting to fetch kanji list, attempt:", retryAttempts + 1);
             
-            return fetchKanjiFromSetUrl("/v1/kanji/joyo").then((kanji) => {
+            const source = plasmoid.configuration.kanjiSource || "joyo";
+            const jlpt = plasmoid.configuration.jlptLevel || "all";
+            
+            let apiPath = "/v1/kanji/joyo";
+            if (source === "all") {
+                apiPath = "/v1/kanji/all";
+            } else if (jlpt !== "all") {
+                apiPath = "/v1/kanji/jlpt-" + jlpt;
+            }
+            
+            console.log("Using API path:", apiPath);
+            
+            return fetchKanjiFromSetUrl(apiPath).then((kanji) => {
                 allKanji = kanji;
                 console.log("Kanji loaded successfully:", allKanji.length);
                 networkAvailable = true;
@@ -192,7 +204,9 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (kanjiLabel.text !== "" && kanjiLabel.text !== "Loading..." && kanjiLabel.text !== "Error loading kanji" && kanjiLabel.text !== "学") {
-                            var url = "https://jotoba.de/search/default/" + encodeURIComponent(kanjiLabel.text) + "?l=es-ES";
+                            var urlTemplate = plasmoid.configuration.redirectUrl || "https://jotoba.de/search/default/%kanji%?l=%lang%";
+                            var lang = plasmoid.configuration.redirectLanguage || "es-ES";
+                            var url = urlTemplate.replace("%kanji%", encodeURIComponent(kanjiLabel.text)).replace("%lang%", lang);
                             Qt.openUrlExternally(url);
                         }
                     }

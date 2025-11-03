@@ -3,4 +3,19 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name=""/>
+  
+  <group name="General">
+    <entry name="jlptLevel" type="String">
+      <default>all</default>
+    </entry>
+    <entry name="kanjiSource" type="String">
+      <default>joyo</default>
+    </entry>
+    <entry name="redirectUrl" type="String">
+      <default>https://jotoba.de/search/default/%kanji%?l=%lang%</default>
+    </entry>
+    <entry name="redirectLanguage" type="String">
+      <default>en-US</default>
+    </entry>
+  </group>
 </kcfg>
