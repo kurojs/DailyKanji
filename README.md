@@ -2,7 +2,7 @@
 
 A KDE Plasma 6 widget that displays a different Japanese kanji character each day, complete with meanings, readings, stroke count, and JLPT level information. Perfect for Japanese learners who want to incorporate daily kanji practice into their desktop workflow.
 
-![Daily Kanji Screenshot](https://i.imgur.com/EmF9nnV.png)
+![Daily Kanji Screenshot](https://i.imgur.com/BoxogAR.png)
 
 ## Features
 
@@ -72,6 +72,8 @@ kpackagetool6 --type=Plasma/Applet --upgrade dailykanji-v1.0.0.plasmoid
 ## Configuration
 
 Right-click the widget and select "Configure Daily Kanji..." to access settings:
+
+![Configuration Settings](https://i.imgur.com/9DTFEGh.png)
 
 ### Kanji Source
 
