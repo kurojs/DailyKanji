@@ -3,7 +3,7 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name=""/>
-  
+
   <group name="General">
     <entry name="jlptLevel" type="String">
       <default>all</default>
@@ -16,6 +16,21 @@
     </entry>
     <entry name="redirectLanguage" type="String">
       <default>en-US</default>
+    </entry>
+    <entry name="showMnemonics" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="wanikaniToken" type="String">
+      <default></default>
+    </entry>
+  </group>
+
+  <group name="Appearance">
+    <entry name="descriptionColor" type="String">
+      <default>#CCCCCC</default>
+    </entry>
+    <entry name="kanjiColor" type="String">
+      <default>#FFFFFF</default>
     </entry>
   </group>
 </kcfg>

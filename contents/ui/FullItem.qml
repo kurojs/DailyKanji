@@ -7,31 +7,35 @@ import org.kde.plasma.plasmoid
 
 Rectangle {
     id: widgetContainer
-    height: 100
+    height: apiHandler.showingMnemonic ? Math.max(100, Math.min(descriptionLabel.implicitHeight + 20, 400)) : 100
     width: 400
     color: "transparent"
-    
+
     Layout.minimumWidth: 400
     Layout.maximumWidth: 400
-    Layout.minimumHeight: 100
-    Layout.maximumHeight: 100
+    Layout.minimumHeight: apiHandler.showingMnemonic ? Math.max(100, Math.min(descriptionLabel.implicitHeight + 20, 400)) : 100
+    Layout.maximumHeight: apiHandler.showingMnemonic ? Math.max(100, Math.min(descriptionLabel.implicitHeight + 20, 400)) : 100
 
     QtObject {
         id: apiHandler
-        
+
         property var allKanji: []
         property int retryAttempts: 0
         property int maxRetryAttempts: 3
         property bool networkAvailable: false
         property string lastKanjiData: ""
         property string lastKanjiDescription: ""
+        property string lastMnemonic: ""
+        property string lastMnemonicReading: ""
+        property bool showingMnemonic: false
+        property bool mnemonicAvailable: false
 
         function fetchKanjiFromSetUrl(setUrl) {
             return new Promise((resolve, reject) => {
                 let xhr = new XMLHttpRequest();
                 xhr.open("GET", "https://kanjiapi.dev" + setUrl, true);
-                xhr.timeout = 10000; // 10 second timeout
-                
+                xhr.timeout = 10000;
+
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === XMLHttpRequest.DONE) {
                         if (xhr.status === 200) {
@@ -39,22 +43,13 @@ Rectangle {
                             retryAttempts = 0;
                             resolve(JSON.parse(xhr.responseText));
                         } else {
-                            console.log("Error fetching kanji set:", xhr.status, xhr.statusText);
                             reject(xhr.status);
                         }
                     }
                 };
-                
-                xhr.ontimeout = function() {
-                    console.log("Network request timed out");
-                    reject("timeout");
-                };
-                
-                xhr.onerror = function() {
-                    console.log("Network error occurred");
-                    reject("network_error");
-                };
-                
+
+                xhr.ontimeout = function() { reject("timeout"); };
+                xhr.onerror = function() { reject("network_error"); };
                 xhr.send();
             });
         }
@@ -62,8 +57,8 @@ Rectangle {
         function fetchKanjiInfos(kanji, successCallback, errorCallback) {
             let xhr = new XMLHttpRequest();
             xhr.open("GET", "https://kanjiapi.dev/v1/kanji/" + kanji, true);
-            xhr.timeout = 8000; // 8 second timeout
-            
+            xhr.timeout = 8000;
+
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
                     if (xhr.status === 200) {
@@ -74,72 +69,49 @@ Rectangle {
                     }
                 }
             };
-            
-            xhr.ontimeout = function() {
-                errorCallback("timeout", "Request timed out");
-            };
-            
-            xhr.onerror = function() {
-                errorCallback("network_error", "Network error");
-            };
-            
+
+            xhr.ontimeout = function() { errorCallback("timeout", "Request timed out"); };
+            xhr.onerror = function() { errorCallback("network_error", "Network error"); };
             xhr.send();
         }
 
         function fetchAllKanji() {
-            console.log("Attempting to fetch kanji list, attempt:", retryAttempts + 1);
-            
             const source = plasmoid.configuration.kanjiSource || "joyo";
             const jlpt = plasmoid.configuration.jlptLevel || "all";
-            
-            // Use github source for JLPT filtering, kanjiapi for others
+
             if (jlpt !== "all") {
-                console.log("Fetching JLPT filtered kanji from github source, level:", jlpt);
-                return fetchJLPTKanjiFromGithub(jlpt, source).then((result) => {
+                return fetchJLPTKanjiFromGithub(jlpt, source).then(function(result) {
                     return true;
-                }).catch((error) => {
-                    console.log("Failed to fetch JLPT kanji:", error);
+                }).catch(function(error) {
                     networkAvailable = false;
-                    
                     if (retryAttempts < maxRetryAttempts) {
                         retryAttempts++;
-                        console.log("Scheduling retry in", (retryAttempts * 5), "seconds");
                         retryTimer.interval = retryAttempts * 5000;
                         retryTimer.restart();
                     } else {
-                        console.log("Max retry attempts reached, showing fallback content");
                         showFallbackContent();
                     }
                     return false;
                 });
             }
-            
-            let apiPath = "/v1/kanji/joyo";
+
+            var apiPath = "/v1/kanji/joyo";
             if (source === "all") {
                 apiPath = "/v1/kanji/all";
             }
-            
-            console.log("Using API path:", apiPath);
-            
-            return fetchKanjiFromSetUrl(apiPath).then((kanji) => {
+
+            return fetchKanjiFromSetUrl(apiPath).then(function(kanji) {
                 allKanji = kanji;
-                console.log("Kanji loaded successfully:", allKanji.length);
                 networkAvailable = true;
                 retryAttempts = 0;
                 return true;
-            }).catch((error) => {
-                console.log("Failed to fetch kanji list:", error);
+            }).catch(function(error) {
                 networkAvailable = false;
-                
                 if (retryAttempts < maxRetryAttempts) {
                     retryAttempts++;
-                    console.log("Scheduling retry in", (retryAttempts * 5), "seconds");
-                    
-                    // Schedule retry with exponential backoff
-                    retryTimer.interval = retryAttempts * 5000; // 5s, 10s, 15s
+                    retryTimer.interval = retryAttempts * 5000;
                     retryTimer.restart();
                 } else {
-                    console.log("Max retry attempts reached, showing fallback content");
                     showFallbackContent();
                 }
                 return false;
@@ -147,77 +119,115 @@ Rectangle {
         }
 
         function fetchJLPTKanjiFromGithub(jlptLevel, source) {
-            const jlptNum = parseInt(jlptLevel.substring(1)); // "n5" -> 5
-            
-            return new Promise((resolve, reject) => {
-                let xhr = new XMLHttpRequest();
+            var jlptNum = parseInt(jlptLevel.substring(1));
+
+            return new Promise(function(resolve, reject) {
+                var xhr = new XMLHttpRequest();
                 xhr.open("GET", "https://raw.githubusercontent.com/davidluzgouveia/kanji-data/master/kanji-jouyou.json", true);
                 xhr.timeout = 15000;
-                
+
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === XMLHttpRequest.DONE) {
                         if (xhr.status === 200) {
                             try {
-                                const data = JSON.parse(xhr.responseText);
-                                const filtered = [];
-                                
-                                for (let kanji in data) {
+                                var data = JSON.parse(xhr.responseText);
+                                var filtered = [];
+
+                                for (var kanji in data) {
                                     if (data[kanji].jlpt_new === jlptNum) {
                                         filtered.push(kanji);
                                     }
                                 }
-                                
+
                                 allKanji = filtered;
-                                console.log("JLPT", jlptLevel, "kanji loaded:", filtered.length);
                                 networkAvailable = true;
                                 retryAttempts = 0;
                                 resolve(true);
                             } catch (e) {
-                                console.log("Error parsing JLPT data:", e);
                                 reject("parse_error");
                             }
                         } else {
-                            console.log("Error fetching JLPT data:", xhr.status);
                             reject(xhr.status);
                         }
                     }
                 };
-                
-                xhr.ontimeout = function() {
-                    console.log("JLPT data request timed out");
-                    reject("timeout");
-                };
-                
-                xhr.onerror = function() {
-                    console.log("Error loading JLPT data");
-                    reject("network_error");
-                };
-                
+
+                xhr.ontimeout = function() { reject("timeout"); };
+                xhr.onerror = function() { reject("network_error"); };
                 xhr.send();
             });
         }
 
+        function stripHtml(text) {
+            return text.replace(/<[^>]+>/g, "");
+        }
+
+        function fetchWanikaniMnemonic(kanji) {
+            var token = plasmoid.configuration.wanikaniToken || "";
+            if (token === "") return;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "https://api.wanikani.com/v2/subjects?types=kanji&slugs=" + encodeURIComponent(kanji), true);
+            xhr.timeout = 8000;
+            xhr.setRequestHeader("Authorization", "Bearer " + token);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        try {
+                            var resp = JSON.parse(xhr.responseText);
+                            if (resp.data && resp.data.length > 0) {
+                                var d = resp.data[0].data;
+                                lastMnemonic = d.meaning_mnemonic ? stripHtml(d.meaning_mnemonic) : "";
+                                lastMnemonicReading = d.reading_mnemonic ? stripHtml(d.reading_mnemonic) : "";
+                            } else {
+                                lastMnemonic = "[No mnemonic available for this kanji]";
+                                lastMnemonicReading = "";
+                            }
+                            if (lastMnemonic === "") {
+                                lastMnemonic = "[No mnemonic available for this kanji]";
+                            }
+                            if (plasmoid.configuration.showMnemonics) {
+                                mnemonicAvailable = true;
+                            }
+                        } catch (e) {}
+                    } else if (xhr.status === 401) {
+                        lastMnemonic = "[Invalid WaniKani token]";
+                        lastMnemonicReading = "";
+                        if (plasmoid.configuration.showMnemonics) {
+                            mnemonicAvailable = true;
+                        }
+                    }
+                }
+            };
+
+            xhr.onerror = function() {};
+            xhr.send();
+        }
+
         function setRandomKanjiInfos() {
             if (allKanji.length > 0) {
-                let randomKanji = allKanji[Math.floor(Math.random() * allKanji.length)];
+                var randomKanji = allKanji[Math.floor(Math.random() * allKanji.length)];
 
                 fetchKanjiInfos(
                     randomKanji,
                     function(response) {
-                        let kanjiData = response;
+                        var kanjiData = response;
                         kanjiLabel.text = kanjiData.kanji;
-                        descriptionLabel.text = 
-                          "Meaning: " + kanjiData.meanings.join(", ") + "\n" +
-                          "Kun: " + kanjiData.kun_readings.join(", ") + "\n" +
-                          "On: " + kanjiData.on_readings.join(", ");
-                        
-                        // Save successful data as fallback
+                        showDetails(kanjiData);
+
                         lastKanjiData = kanjiData.kanji;
                         lastKanjiDescription = descriptionLabel.text;
+                        lastMnemonic = "";
+                        lastMnemonicReading = "";
+                        showingMnemonic = false;
+                        mnemonicAvailable = plasmoid.configuration.showMnemonics && plasmoid.configuration.wanikaniToken !== "";
+
+                        if (mnemonicAvailable) {
+                            fetchWanikaniMnemonic(kanjiData.kanji);
+                        }
                     },
                     function(status, statusText) {
-                        console.error("Error loading kanji details:", status, statusText);
-                        
                         if (status === "timeout" || status === "network_error") {
                             showFallbackContent();
                         } else {
@@ -231,15 +241,25 @@ Rectangle {
             }
         }
 
+        function showDetails(kanjiData) {
+            descriptionLabel.text =
+                "Meaning: " + kanjiData.meanings.join(", ") + "\n" +
+                "Kun: " + kanjiData.kun_readings.join(", ") + "\n" +
+                "On: " + kanjiData.on_readings.join(", ");
+        }
+
         function showFallbackContent() {
+            showingMnemonic = false;
+            lastMnemonic = "";
+            lastMnemonicReading = "";
+            mnemonicAvailable = false;
+
             if (lastKanjiData !== "") {
                 kanjiLabel.text = lastKanjiData;
                 descriptionLabel.text = lastKanjiDescription + "\n\n(Offline mode - showing cached kanji)";
-                console.log("Showing cached kanji as fallback");
             } else {
-                kanjiLabel.text = "学";  // Default kanji meaning "study/learn"
+                kanjiLabel.text = "学";
                 descriptionLabel.text = "Meaning: study, learning, science\nKun: まな.ぶ\nOn: ガク\n\n(Offline mode - network unavailable)";
-                console.log("Showing default kanji as fallback");
             }
         }
 
@@ -260,11 +280,12 @@ Rectangle {
             Layout.preferredWidth: 88
             Layout.fillHeight: true
             spacing: 4
-            
+
             Label {
                 id: kanjiLabel
                 text: "Loading..."
                 font.pointSize: 48
+                color: plasmoid.configuration.kanjiColor || "#FFFFFF"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 horizontalAlignment: Text.AlignHCenter
@@ -283,7 +304,7 @@ Rectangle {
                     }
                 }
             }
-            
+
             Button {
                 id: refreshButton
                 text: "↻"
@@ -292,17 +313,16 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 font.pointSize: 10
                 visible: !apiHandler.networkAvailable || kanjiLabel.text === "学"
-                
+
                 ToolTip.text: "Retry loading kanji"
                 ToolTip.visible: hovered
-                
+
                 onClicked: {
-                    console.log("Manual refresh requested");
                     kanjiLabel.text = "Loading...";
                     descriptionLabel.text = "";
-                    apiHandler.retryAttempts = 0; // Reset retry counter
-                    
-                    apiHandler.fetchAllKanji().then((success) => {
+                    apiHandler.retryAttempts = 0;
+
+                    apiHandler.fetchAllKanji().then(function(success) {
                         if (success) {
                             apiHandler.setRandomKanjiInfos();
                             if (!midnightTimer.running) {
@@ -315,24 +335,41 @@ Rectangle {
             }
         }
 
-        ScrollView {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            
+            spacing: 0
             clip: true
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             Label {
                 id: descriptionLabel
                 text: ""
                 font.pointSize: 12
-                color: "#CCCCCC"
-                width: parent.width
+                color: plasmoid.configuration.descriptionColor || "#CCCCCC"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignLeft
                 verticalAlignment: Text.AlignTop
                 padding: 8
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: apiHandler.mnemonicAvailable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    visible: apiHandler.mnemonicAvailable
+                    onClicked: {
+                        apiHandler.showingMnemonic = !apiHandler.showingMnemonic
+                        if (apiHandler.showingMnemonic) {
+                            var text = apiHandler.lastMnemonic;
+                            if (apiHandler.lastMnemonicReading !== "") {
+                                text += "\n\n" + apiHandler.lastMnemonicReading;
+                            }
+                            descriptionLabel.text = text;
+                        } else {
+                            descriptionLabel.text = apiHandler.lastKanjiDescription;
+                        }
+                    }
+                }
             }
         }
     }
@@ -344,9 +381,9 @@ Rectangle {
         repeat: false
         onTriggered: {
             apiHandler.setRandomKanjiInfos();
-            midnightTimer.interval = 86400000
-            midnightTimer.repeat = true
-            midnightTimer.running = true
+            midnightTimer.interval = 86400000;
+            midnightTimer.repeat = true;
+            midnightTimer.running = true;
         }
     }
 
@@ -355,11 +392,9 @@ Rectangle {
         running: false
         repeat: false
         onTriggered: {
-            console.log("Retrying kanji fetch...");
-            apiHandler.fetchAllKanji().then((success) => {
+            apiHandler.fetchAllKanji().then(function(success) {
                 if (success) {
                     apiHandler.setRandomKanjiInfos();
-                    // Start the midnight timer once we have successfully loaded data
                     midnightTimer.interval = apiHandler.msUntilMidnight();
                     midnightTimer.running = true;
                 }
@@ -369,45 +404,46 @@ Rectangle {
 
     Timer {
         id: startupDelayTimer
-        interval: 3000 
+        interval: 3000
         running: false
         repeat: false
         onTriggered: {
-            console.log("Starting kanji fetch after startup delay");
-            apiHandler.fetchAllKanji().then((success) => {
+            apiHandler.fetchAllKanji().then(function(success) {
                 if (success) {
                     apiHandler.setRandomKanjiInfos();
-                    // Start the midnight timer once we have successfully loaded data
                     midnightTimer.interval = apiHandler.msUntilMidnight();
                     midnightTimer.running = true;
-                } else {
-                    console.log("Initial fetch failed, fallback content already shown");
                 }
             });
         }
     }
 
-    // Watch for configuration changes
     Connections {
         target: plasmoid.configuration
-        function onJlptLevelChanged() {
-            console.log("JLPT Level changed to:", plasmoid.configuration.jlptLevel);
-            reloadKanji();
+        function onJlptLevelChanged() { reloadKanji(); }
+        function onKanjiSourceChanged() { reloadKanji(); }
+        function onShowMnemonicsChanged() {
+            apiHandler.mnemonicAvailable = plasmoid.configuration.showMnemonics && plasmoid.configuration.wanikaniToken !== "" && apiHandler.lastMnemonic !== "";
+            if (!apiHandler.mnemonicAvailable && apiHandler.showingMnemonic) {
+                apiHandler.showingMnemonic = false;
+                descriptionLabel.text = apiHandler.lastKanjiDescription;
+            }
         }
-        function onKanjiSourceChanged() {
-            console.log("Kanji Source changed to:", plasmoid.configuration.kanjiSource);
-            reloadKanji();
+        function onDescriptionColorChanged() {
+            descriptionLabel.color = plasmoid.configuration.descriptionColor || "#CCCCCC";
+        }
+        function onKanjiColorChanged() {
+            kanjiLabel.color = plasmoid.configuration.kanjiColor || "#FFFFFF";
         }
     }
 
     function reloadKanji() {
-        console.log("Reloading kanji due to configuration change");
         kanjiLabel.text = "Loading...";
         descriptionLabel.text = "";
         apiHandler.allKanji = [];
         apiHandler.retryAttempts = 0;
-        
-        apiHandler.fetchAllKanji().then((success) => {
+
+        apiHandler.fetchAllKanji().then(function(success) {
             if (success) {
                 apiHandler.setRandomKanjiInfos();
                 if (!midnightTimer.running) {
@@ -419,11 +455,8 @@ Rectangle {
     }
 
     Component.onCompleted: {
-        console.log("DailyKanji widget loading...");
-        
         kanjiLabel.text = "Loading...";
         descriptionLabel.text = "";
-        
         startupDelayTimer.start();
     }
 }

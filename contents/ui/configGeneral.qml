@@ -9,9 +9,16 @@ KCM.SimpleKCM {
     property alias cfg_kanjiSource: kanjiSourceCombo.currentValue
     property alias cfg_redirectUrl: redirectUrlField.text
     property alias cfg_redirectLanguage: languageField.text
+    property alias cfg_showMnemonics: showMnemonicsCheck.checked
+    property alias cfg_wanikaniToken: tokenField.text
 
     Kirigami.FormLayout {
-        
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: i18n("Kanji Selection")
+        }
+
         ComboBox {
             id: kanjiSourceCombo
             Kirigami.FormData.label: i18n("Kanji Source:")
@@ -30,7 +37,7 @@ KCM.SimpleKCM {
                 }
             }
         }
-        
+
         ComboBox {
             id: jlptLevelCombo
             Kirigami.FormData.label: i18n("JLPT Level Filter:")
@@ -53,19 +60,19 @@ KCM.SimpleKCM {
                 }
             }
         }
-        
-        Item {
+
+        Kirigami.Separator {
             Kirigami.FormData.isSection: true
             Kirigami.FormData.label: i18n("Click Behavior")
         }
-        
+
         TextField {
             id: redirectUrlField
             Kirigami.FormData.label: i18n("Redirect URL:")
             placeholderText: "https://jotoba.de/search/default/%kanji%?l=%lang%"
             Layout.fillWidth: true
         }
-        
+
         Label {
             text: i18n("Use %kanji% for the kanji character and %lang% for the language code")
             font.pointSize: Kirigami.Theme.smallFont.pointSize
@@ -73,16 +80,43 @@ KCM.SimpleKCM {
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
-        
+
         TextField {
             id: languageField
             Kirigami.FormData.label: i18n("Language Code:")
             placeholderText: "es-ES"
             Layout.preferredWidth: Kirigami.Units.gridUnit * 8
         }
-        
+
         Label {
             text: i18n("Examples: en-US, es-ES, ja-JP, fr-FR, de-DE")
+            font.pointSize: Kirigami.Theme.smallFont.pointSize
+            opacity: 0.7
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: i18n("Mnemonic Stories")
+        }
+
+        CheckBox {
+            id: showMnemonicsCheck
+            Kirigami.FormData.label: i18n("Enable mnemonics:")
+            text: i18n("Show WaniKani mnemonic stories")
+        }
+
+        TextField {
+            id: tokenField
+            Kirigami.FormData.label: i18n("WaniKani API Token:")
+            placeholderText: i18n("Paste your API v2 token here")
+            echoMode: TextInput.Password
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: i18n("Required for mnemonic stories. Get your token at wanikani.com/settings/account")
             font.pointSize: Kirigami.Theme.smallFont.pointSize
             opacity: 0.7
             wrapMode: Text.WordWrap
