@@ -7,11 +7,11 @@
             }
         ],
         "Category": "Language",
-        "Description": "A widget to learn daily kanji with meanings and readings. Displays a new kanji each day from the Joyo kanji set.",
+        "Description": "A widget to learn daily kanji with meanings, readings, and WaniKani mnemonic stories. Displays a new kanji each day with customizable colors.",
         "Icon": "accessories-dictionary",
         "Id": "com.github.kurojs.dailykanji",
         "Name": "Daily Kanji",
-        "Version": "1.0.0",
+        "Version": "1.1.0",
         "Website": "https://github.com/kurojs/DailyKanji"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
